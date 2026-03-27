@@ -3,26 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>AI Radar Pro · Opportunity Intelligence</title>
+    <title>NEURAL RADAR · AI Trading Intelligence</title>
     
-    <!-- Font Awesome 6 + Google Fonts -->
+    <!-- Font Awesome + Google Fonts + Chart.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(145deg, #f8fafc 0%, #eff3f8 100%);
             color: #0f172a;
+            transition: background 0.3s, color 0.3s;
         }
 
-        /* Modern glass-navbar */
+        body.dark {
+            background: linear-gradient(145deg, #0a0f1e 0%, #030617 100%);
+            color: #e2e8f0;
+        }
+
+        /* Navbar */
         .navbar {
             position: sticky;
             top: 0;
@@ -34,7 +37,12 @@
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s;
+        }
+
+        body.dark .navbar {
+            background: rgba(2, 6, 23, 0.85);
+            border-bottom-color: rgba(56, 189, 248, 0.2);
         }
 
         .logo {
@@ -44,23 +52,21 @@
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            letter-spacing: -0.3px;
             display: flex;
             align-items: center;
             gap: 8px;
+            cursor: pointer;
         }
 
-        .logo i {
-            background: linear-gradient(145deg, #2563eb, #1e40af);
+        body.dark .logo {
+            background: linear-gradient(135deg, #38bdf8, #60a5fa);
             -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            font-size: 28px;
         }
 
         .menu {
             display: flex;
             gap: 28px;
+            align-items: center;
         }
 
         .menu a {
@@ -68,11 +74,23 @@
             font-weight: 500;
             color: #334155;
             transition: 0.2s;
-            font-size: 15px;
         }
 
-        .menu a:hover {
-            color: #2563eb;
+        body.dark .menu a { color: #94a3b8; }
+        body.dark .menu a:hover { color: #38bdf8; }
+
+        .dark-mode-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 8px;
+            border-radius: 50%;
+        }
+
+        /* Enhanced Search Box with Autocomplete */
+        .search-container {
+            position: relative;
         }
 
         .search-box {
@@ -82,7 +100,11 @@
             padding: 4px 4px 4px 18px;
             border-radius: 48px;
             align-items: center;
-            backdrop-filter: blur(4px);
+        }
+
+        body.dark .search-box {
+            background: rgba(15, 25, 45, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.3);
         }
 
         .search-box input {
@@ -90,10 +112,11 @@
             border: none;
             padding: 10px 0;
             font-size: 14px;
-            width: 180px;
+            width: 200px;
             outline: none;
-            font-weight: 500;
         }
+
+        body.dark .search-box input { color: #e2e8f0; }
 
         .search-box button {
             background: #0f172a;
@@ -104,82 +127,66 @@
             font-weight: 600;
             cursor: pointer;
             transition: 0.2s;
-            font-size: 13px;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        body.dark .autocomplete-dropdown {
+            background: #0f172a;
+            border: 1px solid rgba(56,189,248,0.3);
+        }
+
+        .autocomplete-item {
+            padding: 12px 18px;
+            cursor: pointer;
             display: flex;
-            align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            border-bottom: 1px solid #eef2ff;
         }
 
-        .search-box button:hover {
-            background: #1e293b;
-            transform: scale(0.97);
-        }
+        body.dark .autocomplete-item { border-bottom-color: #1e293b; }
+        .autocomplete-item:hover { background: #f1f5f9; }
+        body.dark .autocomplete-item:hover { background: #1e293b; }
 
-        /* Container */
         .container {
             max-width: 1440px;
             margin: 0 auto;
             padding: 32px 36px;
         }
 
-        /* Header area */
         .hero-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
             margin-bottom: 32px;
         }
 
         .hero-section h2 {
             font-size: 32px;
             font-weight: 800;
-            letter-spacing: -0.02em;
             background: linear-gradient(145deg, #0f172a, #2d3a5e);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
         }
 
-        .hero-section .subtitle {
-            color: #475569;
-            margin-top: 8px;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        body.dark .hero-section h2 {
+            background: linear-gradient(145deg, #38bdf8, #60a5fa);
         }
 
-        /* FILTER CHIPS (modern) */
-        .filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin: 28px 0 28px 0;
-        }
-
-        .filters button {
-            background: white;
-            border: 1px solid #e2e8f0;
-            padding: 8px 24px;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #1e293b;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-        }
-
-        .filters button i {
-            margin-right: 8px;
-            font-size: 12px;
-        }
-
-        .filters button.active {
-            background: #0f172a;
-            color: white;
-            border-color: #0f172a;
-            box-shadow: 0 8px 18px -6px rgba(15,23,42,0.25);
-        }
-
-        /* STAT CARDS (modern metrics) */
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -190,477 +197,553 @@
         .stat-box {
             background: rgba(255,255,255,0.75);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.6);
             border-radius: 28px;
             padding: 22px 20px;
             transition: all 0.2s;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.02);
         }
 
-        .stat-box:hover {
-            transform: translateY(-3px);
-            background: white;
-            border-color: #cbd5e1;
-            box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.08);
-        }
-
-        .stat-title {
-            font-size: 13px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #5b6e8c;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        body.dark .stat-box {
+            background: rgba(15, 25, 45, 0.7);
+            border: 1px solid rgba(56,189,248,0.2);
         }
 
         .stat-value {
             font-size: 38px;
             font-weight: 800;
-            color: #0f172a;
-            line-height: 1;
         }
 
-        /* GRID (modern cards) */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 28px 0;
+        }
+
+        .filters button, .sort-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 8px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        body.dark .filters button, body.dark .sort-btn {
+            background: rgba(15, 25, 45, 0.8);
+            border-color: rgba(56,189,248,0.2);
+            color: #94a3b8;
+        }
+
+        .filters button.active, .sort-btn.active {
+            background: #0f172a;
+            color: white;
+        }
+
+        body.dark .filters button.active, body.dark .sort-btn.active {
+            background: #0284c7;
+        }
+
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
             gap: 28px;
         }
 
-        /* CARD premium design */
         .card {
             background: #ffffff;
             border-radius: 32px;
             padding: 22px 24px;
             transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             border: 1px solid #eef2ff;
-            box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.05);
             cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            display: block;
+            position: relative;
+        }
+
+        body.dark .card {
+            background: rgba(10, 20, 35, 0.8);
+            border-color: rgba(56,189,248,0.2);
         }
 
         .card:hover {
-            transform: translateY(-6px);
-            border-color: #cbdffc;
-            box-shadow: 0 24px 36px -14px rgba(0, 0, 0, 0.12);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 30px -12px rgba(0,0,0,0.15);
         }
 
         .stock-header {
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             margin-bottom: 12px;
         }
 
         .stock {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
-            letter-spacing: -0.3px;
-            background: linear-gradient(135deg, #1e1f2c, #0f172a);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+
+        .trend-indicator {
+            font-size: 14px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #e6f7ec;
+            color: #15803d;
+        }
+
+        body.dark .trend-indicator.bullish { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .trend-indicator.bearish { background: #fee9e6; color: #b91c1c; }
 
         .price {
-            font-weight: 700;
             font-size: 20px;
-            color: #0f172a;
-        }
-
-        .price small {
-            font-size: 12px;
-            font-weight: 400;
-            color: #64748b;
-        }
-
-        .details-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 14px 0 10px 0;
-            padding: 8px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .details-row span:first-child {
-            color: #5b6e8c;
-            font-weight: 500;
-            font-size: 13px;
-        }
-
-        .details-row span:last-child {
             font-weight: 700;
-            font-size: 15px;
         }
 
-        /* signal badges */
         .signal-badge {
             display: inline-block;
             padding: 6px 18px;
             border-radius: 40px;
             font-weight: 700;
             font-size: 13px;
-            text-align: center;
-            letter-spacing: 0.3px;
-            margin: 10px 0 8px 0;
+            margin: 10px 0;
         }
 
-        .buy {
-            background: #e6f7ec;
-            color: #15803d;
-            border-left: 3px solid #22c55e;
-        }
+        .buy { background: #e6f7ec; color: #15803d; border-left: 3px solid #22c55e; }
+        .sell { background: #fee9e6; color: #b91c1c; border-left: 3px solid #ef4444; }
+        .watch { background: #fffbeb; color: #b45309; border-left: 3px solid #f59e0b; }
 
-        .sell {
-            background: #fee9e6;
-            color: #b91c1c;
-            border-left: 3px solid #ef4444;
-        }
-
-        .watch {
-            background: #fffbeb;
-            color: #b45309;
-            border-left: 3px solid #f59e0b;
-        }
-
-        /* pattern & confidence chips */
         .badge-group {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin: 12px 0 12px;
+            margin: 12px 0;
         }
 
         .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
             padding: 5px 14px;
             border-radius: 40px;
             font-size: 12px;
             font-weight: 600;
             background: #f8fafc;
-            color: #1e293b;
         }
 
-        .pattern {
-            background: #eef2ff;
-            color: #1e3a8a;
-        }
-
-        .confidence {
-            background: #e0f2fe;
-            color: #0c4a6e;
-        }
-
-        /* Risk Box (modern) */
         .risk-box {
-            margin: 16px 0 12px;
             background: #f8fafd;
             padding: 12px 14px;
             border-radius: 20px;
-            border: 1px solid #e9eef3;
-            font-size: 13px;
             display: flex;
             justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .target {
-            font-weight: 700;
-            color: #0f172a;
-        }
-
-        .sl {
-            font-weight: 700;
-            color: #dc2626;
+            margin: 16px 0;
         }
 
         .insight {
             font-size: 13px;
-            color: #334155;
-            line-height: 1.45;
             background: #fefce8;
             padding: 10px 12px;
             border-radius: 18px;
-            margin-top: 12px;
             border-left: 3px solid #facc15;
         }
 
-        /* empty state */
-        .no-results {
-            text-align: center;
-            padding: 60px;
-            background: white;
-            border-radius: 48px;
-            color: #64748b;
+        .why-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            display: none;
         }
 
-        a {
-            text-decoration: none;
+        .why-section.show { display: block; }
+
+        /* Chatbot */
+        .chatbot-container {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 340px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+            overflow: hidden;
         }
+
+        body.dark .chatbot-container { background: #0f172a; border: 1px solid #38bdf8; }
+
+        .chat-header {
+            padding: 12px 16px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            border: none;
+            padding: 12px;
+            outline: none;
+        }
+
+        .chat-input-area button {
+            padding: 12px 16px;
+            background: #0f172a;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .chat-message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            max-width: 85%;
+        }
+
+        .chat-message.user {
+            background: #0f172a;
+            color: white;
+            margin-left: auto;
+        }
+
+        .chat-message.ai {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        body.dark .chat-message.ai { background: #1e293b; color: #e2e8f0; }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .suggestion-chip {
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .chat-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #0f172a;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .live-badge {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #22c55e;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 999;
+        }
+
+        @keyframes shake {
+            0%,100%{transform:translateX(0)}
+            25%{transform:translateX(-5px)}
+            75%{transform:translateX(5px)}
+        }
+        .shake { animation: shake 0.3s; }
 
         @media (max-width: 640px) {
-            .navbar {
-                padding: 12px 20px;
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-            .container {
-                padding: 20px;
-            }
-            .search-box input {
-                width: 130px;
-            }
-            .stat-value {
-                font-size: 28px;
-            }
+            .navbar { padding: 12px 20px; flex-wrap: wrap; }
+            .container { padding: 20px; }
+            .grid { grid-template-columns: 1fr; }
+            .chatbot-container { width: calc(100vw - 40px); right: 20px; bottom: 80px; }
         }
     </style>
 </head>
 <body>
 
 <div class="navbar">
-    <div class="logo">
-        <i class="fas fa-chart-line"></i> AI Radar Pro
+    <div class="logo" onclick="location.href='/'">
+        <i class="fas fa-chart-line"></i> NEURAL RADAR
     </div>
     <div class="menu">
         <a href="#"><i class="fas fa-chart-simple"></i> Live</a>
         <a href="#"><i class="fas fa-bolt"></i> Opportunities</a>
         <a href="#"><i class="fas fa-robot"></i> AI Labs</a>
+        <button class="dark-mode-toggle" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
     </div>
-    <div class="search-box">
-        <i class="fas fa-search" style="color:#94a3b8;"></i>
-        <input id="searchInput" type="text" placeholder="Search symbol...">
-        <button onclick="searchStock()"><i class="fas fa-arrow-right"></i> Analyze</button>
+    <div class="search-container">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input id="searchInput" type="text" placeholder="Search stock..." autocomplete="off">
+            <button onclick="searchStock()">Analyze</button>
+        </div>
+        <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
     </div>
 </div>
 
 <div class="container">
     <div class="hero-section">
-        <h2><i class="fas fa-microchip"></i> AI Opportunity Radar</h2>
-        <div class="subtitle">
-            <span><i class="fas fa-chart-line" style="color:#3b82f6;"></i> Neural signals · Risk-adjusted targets</span>
-            <span><i class="fas fa-clock"></i> Real-time insight engine</span>
+        <div>
+            <h2><i class="fas fa-microchip"></i> AI Opportunity Radar</h2>
+            <div class="subtitle">
+                <span>Neural signals · Real-time intelligence</span>
+                <span><i class="fas fa-sync-alt" style="color:#22c55e;"></i> <span id="updateStatus">Live</span></span>
+            </div>
+        </div>
+        <div class="sort-controls">
+            <span>Sort by:</span>
+            <button class="sort-btn active" onclick="sortCards('score', this)">AI Score</button>
+            <button class="sort-btn" onclick="sortCards('price', this)">Price</button>
+            <button class="sort-btn" onclick="sortCards('rsi', this)">RSI</button>
         </div>
     </div>
 
-    <!-- FILTER BUTTONS -->
     <div class="filters">
-        <button id="filterAll" class="active" onclick="filterCards('ALL')"><i class="fas fa-layer-group"></i> All Signals</button>
-        <button id="filterBuy" onclick="filterCards('BUY')"><i class="fas fa-arrow-up"></i> Strong BUY</button>
-        <button id="filterSell" onclick="filterCards('SELL')"><i class="fas fa-arrow-down"></i> SELL</button>
-        <button id="filterWatch" onclick="filterCards('WATCH')"><i class="fas fa-eye"></i> WATCH</button>
+        <button id="filterAll" class="active" onclick="filterCards('ALL', this)">All Signals</button>
+        <button id="filterBuy" onclick="filterCards('BUY', this)">Strong BUY</button>
+        <button id="filterSell" onclick="filterCards('SELL', this)">SELL</button>
+        <button id="filterWatch" onclick="filterCards('WATCH', this)">WATCH</button>
     </div>
 
-    <!-- STATS PANEL with dynamic data -->
     <div class="stats">
-        <div class="stat-box">
-            <div class="stat-title"><i class="fas fa-chart-line"></i> Total Stocks</div>
-            <div class="stat-value" id="totalStocks">0</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-title"><i class="fas fa-chart-simple"></i> Avg. AI Score</div>
-            <div class="stat-value" id="avgScore">0</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-title"><i class="fas fa-bullhorn"></i> BUY Signals</div>
-            <div class="stat-value" id="buyCount">0</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-title"><i class="fas fa-chart-line"></i> Top Momentum</div>
-            <div class="stat-value" id="topScore">—</div>
-        </div>
+        <div class="stat-box"><div class="stat-title">Total Stocks</div><div class="stat-value" id="totalStocks">0</div></div>
+        <div class="stat-box"><div class="stat-title">Avg. AI Score</div><div class="stat-value" id="avgScore">0</div></div>
+        <div class="stat-box"><div class="stat-title">BUY Signals</div><div class="stat-value" id="buyCount">0</div></div>
+        <div class="stat-box"><div class="stat-title">Top Momentum</div><div class="stat-value" id="topScore">—</div></div>
     </div>
 
-    <!-- CARDS GRID -->
     <div class="grid" id="stockGrid">
         {% for stock in data %}
-        <a href="/stock/{{ stock.stock }}" class="card-link">
-            <div class="card" data-signal="{{ stock.signals }}" data-score="{{ stock.score }}">
-                <div class="stock-header">
-                    <div class="stock">{{ stock.stock }}</div>
-                    <div class="price">₹{{ "%.2f"|format(stock.price) }}<small></small></div>
+        <div class="card" data-symbol="{{ stock.stock }}" data-signal="{{ stock.signals }}" data-score="{{ stock.score }}" data-price="{{ stock.price }}" data-rsi="{{ stock.rsi }}" onclick="openStock('{{ stock.stock }}')">
+            <div class="stock-header">
+                <div class="stock">
+                    {{ stock.stock }}
+                    <button class="watchlist-btn" onclick="event.stopPropagation(); toggleWatchlist('{{ stock.stock }}', this)">
+                        <i class="far fa-star"></i>
+                    </button>
                 </div>
-
-                <div class="details-row">
-                    <span><i class="fas fa-chart-simple"></i> AI Score</span>
-                    <span>{{ stock.score }} / 100</span>
-                </div>
-                <div class="details-row">
-                    <span><i class="fas fa-microchip"></i> Confidence</span>
-                    <span>{{ stock.confidence }}%</span>
-                </div>
-
-                <div class="badge-group">
-                    <div class="badge pattern">
-                        <i class="fas fa-waveform"></i> {{ stock.pattern }}
-                    </div>
-                    <div class="badge confidence">
-                        <i class="fas fa-chart-line"></i> AI Precision
-                    </div>
-                </div>
-
-                <div class="signal-badge 
-                    {% if stock.signals == 'BUY' %}buy
-                    {% elif stock.signals == 'SELL' %}sell
-                    {% else %}watch
-                    {% endif %}
-                ">
-                    <i class="fas {% if stock.signals == 'BUY' %}fa-arrow-up{% elif stock.signals == 'SELL' %}fa-arrow-down{% else %}fa-hourglass-half{% endif %}"></i> 
-                    {{ stock.signals }} SIGNAL
-                </div>
-
-                <!-- Risk Box with modern look -->
-                <div class="risk-box">
-                    <span><i class="fas fa-bullseye" style="color:#2563eb;"></i> Target: <span class="target">₹{{ "%.2f"|format(stock.target) }}</span></span>
-                    <span><i class="fas fa-shield-alt" style="color:#dc2626;"></i> Stop Loss: <span class="sl">₹{{ "%.2f"|format(stock.sl) }}</span></span>
-                </div>
-
-                <div class="insight">
-                    <i class="fas fa-lightbulb" style="color:#eab308; margin-right: 6px;"></i> {{ stock.insight }}
-                </div>
+                <div class="price">₹{{ "%.2f"|format(stock.price) }}</div>
             </div>
-        </a>
+            <div class="trend-indicator {% if stock.score > 70 %}bullish{% else %}bearish{% endif %}">
+                <i class="fas {% if stock.score > 70 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                Trend: {% if stock.score > 70 %}Bullish{% else %}Bearish{% endif %}
+            </div>
+            <div class="details-row"><span>AI Score</span><span>{{ stock.score }} / 100</span></div>
+            <div class="details-row"><span>Confidence</span><span>{{ stock.confidence }}%</span></div>
+            <div class="badge-group">
+                <div class="badge pattern"><i class="fas fa-waveform"></i> {{ stock.pattern }}</div>
+                <div class="badge confidence"><i class="fas fa-chart-line"></i> Win Rate: {{ stock.confidence }}%</div>
+            </div>
+            <div class="signal-badge {% if stock.signals == 'BUY' %}buy{% elif stock.signals == 'SELL' %}sell{% else %}watch{% endif %}">
+                <i class="fas {% if stock.signals == 'BUY' %}fa-arrow-up{% elif stock.signals == 'SELL' %}fa-arrow-down{% else %}fa-hourglass-half{% endif %}"></i> {{ stock.signals }} SIGNAL
+            </div>
+            <div class="risk-box">
+                <span><i class="fas fa-bullseye"></i> Target: ₹{{ "%.2f"|format(stock.target) }}</span>
+                <span><i class="fas fa-shield-alt"></i> Stop: ₹{{ "%.2f"|format(stock.sl) }}</span>
+            </div>
+            <div class="insight">
+                <i class="fas fa-lightbulb"></i> {{ stock.insight }}
+            </div>
+            <button class="why-btn" onclick="event.stopPropagation(); toggleWhy(this)">📊 Why this trade?</button>
+            <div class="why-section">
+                <strong>Technical Analysis:</strong><br>
+                • RSI: {{ stock.rsi }} - {% if stock.rsi > 70 %}Overbought{% elif stock.rsi < 30 %}Oversold{% else %}Neutral{% endif %}<br>
+                • Pattern: {{ stock.pattern }} detected<br>
+                • Risk/Reward: {{ ((stock.target - stock.price) / (stock.price - stock.sl) * 100)|round(0) }}%<br>
+                <strong>Suggested Entry:</strong> ₹{{ "%.2f"|format(stock.price) }}
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
 
+<div class="live-badge"><i class="fas fa-circle" style="font-size: 8px; margin-right: 6px;"></i> REAL-TIME DATA</div>
+<button class="chat-toggle" onclick="toggleChat()"><i class="fas fa-robot"></i></button>
+
+<div class="chatbot-container" id="chatbot">
+    <div class="chat-header">
+        <span><i class="fas fa-brain"></i> AI Trading Assistant</span>
+        <button onclick="toggleChat()" style="background:none; border:none; color:white;">✕</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="chat-message ai">👋 Hi! I'm your AI trading assistant. Ask me about any stock, signal explanation, or market insights!</div>
+    </div>
+    <div class="suggestions">
+        <span class="suggestion-chip" onclick="sendSuggestion('Is RELIANCE a good buy?')">RELIANCE buy?</span>
+        <span class="suggestion-chip" onclick="sendSuggestion('Explain BUY signal')">Explain BUY signal</span>
+        <span class="suggestion-chip" onclick="sendSuggestion('What is RSI?')">What is RSI?</span>
+        <span class="suggestion-chip" onclick="sendSuggestion('Best stock today')">Best stock today</span>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="chatInput" placeholder="Ask anything..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+
 <script>
-    // Helper: update stats based on visible cards (filtered)
+    // Stock list for autocomplete (from backend)
+    const stockList = [
+        {% for stock in data %}
+        { symbol: "{{ stock.stock }}", price: {{ stock.price }}, signal: "{{ stock.signals }}" },
+        {% endfor %}
+    ];
+
+    // Autocomplete
+    const searchInput = document.getElementById('searchInput');
+    const dropdown = document.getElementById('autocompleteDropdown');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toUpperCase();
+        if (query.length < 1) { dropdown.style.display = 'none'; return; }
+        const filtered = stockList.filter(s => s.symbol.includes(query)).slice(0, 8);
+        if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
+        dropdown.innerHTML = filtered.map(s => `
+            <div class="autocomplete-item" onclick="selectStock('${s.symbol}')">
+                <span><strong>${s.symbol}</strong></span>
+                <span>₹${s.price.toFixed(2)} | ${s.signal}</span>
+            </div>
+        `).join('');
+        dropdown.style.display = 'block';
+    });
+
+    function selectStock(symbol) {
+        window.location.href = `/stock/${symbol}`;
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    // Core Functions
+    function openStock(symbol) { window.location.href = `/stock/${symbol}`; }
+    function searchStock() { let val = searchInput.value.trim().toUpperCase(); if(val) window.location.href = `/stock/${val}`; else searchInput.classList.add('shake'), setTimeout(() => searchInput.classList.remove('shake'), 300); }
+
+    let watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
+    function updateWatchlistIcons() { document.querySelectorAll('.watchlist-btn').forEach(btn => { const symbol = btn.closest('.card').dataset.symbol; btn.innerHTML = watchlist.includes(symbol) ? '<i class="fas fa-star" style="color:#facc15;"></i>' : '<i class="far fa-star"></i>'; }); }
+    function toggleWatchlist(symbol, btn) { const idx = watchlist.indexOf(symbol); idx === -1 ? watchlist.push(symbol) : watchlist.splice(idx,1); localStorage.setItem('watchlist', JSON.stringify(watchlist)); updateWatchlistIcons(); showToast(idx === -1 ? `✅ ${symbol} added` : `❌ ${symbol} removed`); }
+    function showToast(msg) { const t = document.createElement('div'); t.className = 'fixed bottom-32 right-6 z-50 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm'; t.innerHTML = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
+    function toggleWhy(btn) { const whyDiv = btn.nextElementSibling; whyDiv.classList.toggle('show'); btn.textContent = whyDiv.classList.contains('show') ? '📊 Hide analysis' : '📊 Why this trade?'; }
+    function toggleDarkMode() { document.body.classList.toggle('dark'); localStorage.setItem('darkMode', document.body.classList.contains('dark')); }
+    if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+
+    let currentFilter = 'ALL';
+    function filterCards(type, btn) {
+        currentFilter = type;
+        document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll(".card").forEach(card => { card.style.display = (type === "ALL" || card.dataset.signal === type) ? "block" : "none"; });
+        updateStats();
+    }
+
+    let currentSort = 'score';
+    function sortCards(criteria, btn) {
+        currentSort = criteria;
+        document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const grid = document.getElementById('stockGrid');
+        const cards = Array.from(grid.children);
+        cards.sort((a,b) => {
+            let aVal = parseFloat(a.dataset[criteria]), bVal = parseFloat(b.dataset[criteria]);
+            return bVal - aVal;
+        });
+        cards.forEach(card => grid.appendChild(card));
+        updateStats();
+    }
+
     function updateStats() {
-        let allCards = Array.from(document.querySelectorAll('.card'));
-        let visibleCards = allCards.filter(card => card.style.display !== 'none');
-        
-        let total = visibleCards.length;
-        let totalScore = 0;
-        let buySignals = 0;
-        let maxScore = 0;
-        
-        visibleCards.forEach(card => {
-            let score = parseInt(card.getAttribute('data-score')) || 0;
-            totalScore += score;
-            if (score > maxScore) maxScore = score;
-            
-            let signal = card.getAttribute('data-signal');
-            if (signal === 'BUY') buySignals++;
-        });
-        
-        let avgScoreVal = total === 0 ? 0 : Math.round(totalScore / total);
+        let visible = Array.from(document.querySelectorAll('.card')).filter(c => c.style.display !== 'none');
+        let total = visible.length, totalScore = 0, buySignals = 0, maxScore = 0;
+        visible.forEach(c => { let s = parseInt(c.dataset.score); totalScore += s; maxScore = Math.max(maxScore, s); if(c.dataset.signal === 'BUY') buySignals++; });
         document.getElementById('totalStocks').innerText = total;
-        document.getElementById('avgScore').innerText = avgScoreVal;
+        document.getElementById('avgScore').innerText = total ? Math.round(totalScore/total) : 0;
         document.getElementById('buyCount').innerText = buySignals;
-        document.getElementById('topScore').innerHTML = maxScore > 0 ? maxScore : '—';
+        document.getElementById('topScore').innerHTML = maxScore || '—';
     }
 
-    // Improved filtering with animation and active button toggle
-    function filterCards(type) {
-        let cards = document.querySelectorAll(".card");
-        let anyVisible = false;
-        
-        cards.forEach(card => {
-            let signal = card.getAttribute("data-signal");
-            if (type === "ALL" || signal === type) {
-                card.style.display = "block";
-                anyVisible = true;
-                // subtle fade-in effect
-                card.style.opacity = "0";
-                setTimeout(() => { card.style.opacity = "1"; }, 10);
-            } else {
-                card.style.display = "none";
-            }
-        });
-        
-        // Update active class on filter buttons
-        let buttons = document.querySelectorAll(".filters button");
-        buttons.forEach(btn => {
-            btn.classList.remove("active");
-        });
-        
-        if (type === "ALL") document.getElementById("filterAll").classList.add("active");
-        if (type === "BUY") document.getElementById("filterBuy").classList.add("active");
-        if (type === "SELL") document.getElementById("filterSell").classList.add("active");
-        if (type === "WATCH") document.getElementById("filterWatch").classList.add("active");
-        
-        // Update stats after filter
-        updateStats();
-        
-        // show empty state if no visible cards
-        let grid = document.getElementById('stockGrid');
-        let existingEmpty = document.querySelector('.no-results-message');
-        if (!anyVisible) {
-            if (!existingEmpty) {
-                let emptyDiv = document.createElement('div');
-                emptyDiv.className = 'no-results-message';
-                emptyDiv.style.gridColumn = '1/-1';
-                emptyDiv.style.textAlign = 'center';
-                emptyDiv.style.padding = '50px';
-                emptyDiv.style.background = '#fff';
-                emptyDiv.style.borderRadius = '40px';
-                emptyDiv.innerHTML = '<i class="fas fa-radar" style="font-size: 40px; opacity:0.4;"></i><p style="margin-top:12px;">No signals match this filter. Try another view.</p>';
-                grid.appendChild(emptyDiv);
-            }
-        } else {
-            if (existingEmpty) existingEmpty.remove();
-        }
+    // Chatbot
+    function toggleChat() { const c = document.getElementById('chatbot'); c.style.display = c.style.display === 'none' ? 'block' : 'none'; }
+    async function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const msg = input.value.trim();
+        if (!msg) return;
+        addChatMessage('user', msg);
+        input.value = '';
+        try {
+            const res = await fetch('/chatbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+            const data = await res.json();
+            addChatMessage('ai', data.response);
+        } catch(e) { addChatMessage('ai', 'Sorry, having trouble connecting. Please try again.'); }
     }
-    
-    // Search function: redirect with exact symbol
-    function searchStock() {
-        let val = document.getElementById("searchInput").value.trim().toUpperCase();
-        if (val) {
-            window.location.href = "/stock/" + encodeURIComponent(val);
-        } else {
-            // subtle shake effect
-            let inputField = document.getElementById("searchInput");
-            inputField.style.transform = "shake 0.2s";
-            setTimeout(() => { inputField.style.transform = ""; }, 300);
-        }
+    function sendSuggestion(msg) { document.getElementById('chatInput').value = msg; sendMessage(); }
+    function addChatMessage(sender, text) {
+        const container = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = `chat-message ${sender}`;
+        div.innerHTML = text;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
     }
-    
-    // Additional filter by pressing Enter key in search
-    document.getElementById("searchInput").addEventListener("keypress", function(event) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            searchStock();
-        }
-    });
-    
-    // initial stats update after page loads + slight card effect
-    window.addEventListener('DOMContentLoaded', () => {
-        updateStats();
-        // ensure all cards have smooth entry
-        let cards = document.querySelectorAll('.card');
+
+    // Real data simulation - fetch from API
+    async function refreshData() {
+        try {
+            const res = await fetch('/api/opportunities');
+            const data = await res.json();
+            if (data && data.length) updateCardsWithData(data);
+            document.getElementById('updateStatus').innerHTML = 'Updated just now';
+            setTimeout(() => document.getElementById('updateStatus').innerHTML = 'Live', 2000);
+        } catch(e) { console.log('Refresh failed'); }
+    }
+
+    function updateCardsWithData(data) {
+        const cards = document.querySelectorAll('.card');
         cards.forEach((card, idx) => {
-            card.style.opacity = "0";
-            card.style.transform = "translateY(12px)";
-            setTimeout(() => {
-                card.style.transition = "opacity 0.35s ease, transform 0.35s ease";
-                card.style.opacity = "1";
-                card.style.transform = "translateY(0)";
-            }, idx * 40);
+            if (data[idx]) {
+                card.querySelector('.price').innerHTML = `₹${data[idx].price.toFixed(2)}`;
+                card.querySelector('.trend-indicator').innerHTML = `<i class="fas ${data[idx].score > 70 ? 'fa-arrow-up' : 'fa-arrow-down'}"></i> Trend: ${data[idx].score > 70 ? 'Bullish' : 'Bearish'}`;
+                card.querySelector('.signal-badge').innerHTML = `<i class="fas ${data[idx].signals === 'BUY' ? 'fa-arrow-up' : data[idx].signals === 'SELL' ? 'fa-arrow-down' : 'fa-hourglass-half'}"></i> ${data[idx].signals} SIGNAL`;
+                card.querySelector('.insight').innerHTML = `<i class="fas fa-lightbulb"></i> ${data[idx].insight}`;
+                card.dataset.score = data[idx].score;
+                card.dataset.price = data[idx].price;
+            }
         });
-        
-        // live demo: add hover interaction for navbar
-    });
-    
-    // optional: dynamic filter after search using local filter (client side)
-    window.filterCards = filterCards;
-    window.searchStock = searchStock;
-    
-    // realtime search highlight? just keep redirect.
-    // for full dynamic client-side search (bonus) — but we keep main backend style
-    // additional micro-interaction for filter buttons
-    const style = document.createElement('style');
-    style.innerHTML = ` .card { transition: opacity 0.2s, transform 0.2s; } .no-results-message { animation: fadeIn 0.3s; } @keyframes fadeIn { from { opacity:0; } to { opacity:1; } } `;
-    document.head.appendChild(style);
-</script>
+        updateStats();
+    }
 
+    setInterval(refreshData, 30000);
+    window.addEventListener('DOMContentLoaded', () => { updateStats(); updateWatchlistIcons(); });
+    window.openStock = openStock; window.filterCards = filterCards; window.sortCards = sortCards;
+    window.toggleWatchlist = toggleWatchlist; window.toggleDarkMode = toggleDarkMode; window.sendMessage = sendMessage;
+    window.toggleChat = toggleChat; window.sendSuggestion = sendSuggestion;
+</script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify, session
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -7,9 +7,13 @@ from dotenv import load_dotenv
 from functools import lru_cache
 import time
 from datetime import datetime, timedelta
+import json
+import hashlib
+import random
+from collections import OrderedDict
 
 # ==============================
-# ✅ ENV
+# ✅ ENV & CONFIG
 # ==============================
 load_dotenv()
 
@@ -27,84 +31,65 @@ if api_key:
     try:
         client = OpenAI(api_key=api_key)
         USE_AI = True
+        print("✅ AI Enabled with GPT-4o-mini")
     except:
-        print("OpenAI initialization failed")
+        print("⚠️ OpenAI initialization failed")
 
-print("AI Enabled:", USE_AI)
+print(f"🤖 AI Status: {'ENABLED' if USE_AI else 'DISABLED'}")
 
 # ==============================
-# 🚀 APP
+# 🚀 APP INITIALIZATION
 # ==============================
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "your-secret-key-here")
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+# Simple cache for AI responses
+ai_cache = OrderedDict()
+CACHE_SIZE = 100
+CACHE_TTL = 3600
+
+def get_cache_key(prefix, data):
+    key_str = f"{prefix}_{json.dumps(data, sort_keys=True)}"
+    return hashlib.md5(key_str.encode()).hexdigest()
+
+def get_cached_ai_response(key):
+    if key in ai_cache:
+        timestamp, response = ai_cache[key]
+        if time.time() - timestamp < CACHE_TTL:
+            return response
+        else:
+            del ai_cache[key]
+    return None
+
+def cache_ai_response(key, response):
+    ai_cache[key] = (time.time(), response)
+    while len(ai_cache) > CACHE_SIZE:
+        ai_cache.popitem(last=False)
 
 # ==============================
-# 📄 COMPREHENSIVE STOCK LIST (NIFTY 50 + NIFTY NEXT 50 + SENSEX)
+# 📄 COMPREHENSIVE STOCK LIST
 # ==============================
 def get_stock_list():
-    """
-    Returns a comprehensive list of Indian stocks including:
-    - NIFTY 50
-    - NIFTY Next 50
-    - Bank NIFTY
-    - Major mid-caps
-    """
-    try:
-        # Try to read from CSV first
-        if os.path.exists("nifty50.csv"):
-            df = pd.read_csv("nifty50.csv")
-            stocks = df["symbol"].dropna().tolist()
-            # Add .NS suffix if not already present
-            stocks = [s if '.NS' in s else s + '.NS' for s in stocks]
-            return stocks
-    except:
-        pass
-    
-    # Comprehensive Indian stock list (NIFTY 50 + major stocks)
-    indian_stocks = [
-        # NIFTY 50 Stocks
+    """Returns comprehensive list of Indian stocks"""
+    comprehensive_stocks = [
         "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
         "HINDUNILVR.NS", "ITC.NS", "SBIN.NS", "BHARTIARTL.NS", "KOTAKBANK.NS",
         "BAJFINANCE.NS", "LT.NS", "WIPRO.NS", "ASIANPAINT.NS", "AXISBANK.NS",
         "MARUTI.NS", "SUNPHARMA.NS", "HCLTECH.NS", "ULTRACEMCO.NS", "TITAN.NS",
         "ADANIPORTS.NS", "NTPC.NS", "POWERGRID.NS", "M&M.NS", "TATAMOTORS.NS",
         "TATASTEEL.NS", "JSWSTEEL.NS", "TECHM.NS", "INDUSINDBK.NS", "NESTLEIND.NS",
-        
-        # NIFTY Next 50 & Major Stocks
-        "VEDL.NS", "BAJAJFINSV.NS", "DABUR.NS", "DIVISLAB.NS", "DRREDDY.NS",
-        "EICHERMOT.NS", "GRASIM.NS", "HDFC.NS", "HEROMOTOCO.NS", "HINDALCO.NS",
-        "HINDZINC.NS", "IOC.NS", "IRCTC.NS", "LICI.NS", "MUTHOOTFIN.NS",
-        "NAUKRI.NS", "ONGC.NS", "PIDILITIND.NS", "SBILIFE.NS", "SHREECEM.NS",
-        "SIEMENS.NS", "SUNTV.NS", "TORNTPHARM.NS", "UPL.NS", "COALINDIA.NS",
-        "BPCL.NS", "BRITANNIA.NS", "CIPLA.NS", "DMART.NS", "GAIL.NS",
-        
-        # Bank NIFTY & Financials
+        "VEDL.NS", "DABUR.NS", "TORNTPHARM.NS", "MUTHOOTFIN.NS", "NAUKRI.NS",
         "BANKBARODA.NS", "CANBK.NS", "PNB.NS", "FEDERALBNK.NS", "IDFCFIRSTB.NS",
-        "INDUSINDBK.NS", "RBLBANK.NS", "YESBANK.NS", "AUBANK.NS", "BANDHANBNK.NS",
-        
-        # IT & Tech
-        "LTIM.NS", "MPHASIS.NS", "PERSISTENT.NS", "COFORGE.NS", "MINDTREE.NS",
-        
-        # Auto
-        "BAJAJ-AUTO.NS", "TVSMOTOR.NS", "ASHOKLEY.NS", "BOSCHLTD.NS", "EXIDEIND.NS",
-        
-        # Pharma & Healthcare
-        "APOLLOHOSP.NS", "MAXHEALTH.NS", "METROPOLIS.NS", "LAURUSLABS.NS",
-        
-        # FMCG
-        "MARICO.NS", "GODREJCP.NS", "COLPAL.NS", "HAL.NS",
-        
-        # Real Estate & Infrastructure
-        "DLF.NS", "GODREJPROP.NS", "L&T.NS", "IRB.NS", "NBCC.NS"
+        "LTIM.NS", "MPHASIS.NS", "PERSISTENT.NS", "COFORGE.NS", "ZOMATO.NS",
+        "DLF.NS", "GODREJPROP.NS", "HAL.NS", "BEL.NS", "COALINDIA.NS"
     ]
-    
-    return indian_stocks
-
+    return comprehensive_stocks
 
 # ==============================
 # 🔧 SAFE SERIES EXTRACTION
 # ==============================
 def get_series(df, col):
-    """Safely extract a column as pandas Series"""
     if col not in df.columns:
         return pd.Series([0] * len(df))
     data = df[col]
@@ -112,12 +97,10 @@ def get_series(df, col):
         data = data.iloc[:, 0]
     return data
 
-
 # ==============================
 # 📊 TECHNICAL INDICATORS
 # ==============================
 def calculate_rsi(series, period=14):
-    """Calculate RSI indicator"""
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
@@ -125,40 +108,24 @@ def calculate_rsi(series, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi.fillna(50)
 
-
 def calculate_macd(series, fast=12, slow=26, signal=9):
-    """Calculate MACD indicator"""
     ema_fast = series.ewm(span=fast, adjust=False).mean()
     ema_slow = series.ewm(span=slow, adjust=False).mean()
     macd_line = ema_fast - ema_slow
     signal_line = macd_line.ewm(span=signal, adjust=False).mean()
-    histogram = macd_line - signal_line
-    return macd_line, signal_line, histogram
-
+    return macd_line, signal_line
 
 def calculate_bollinger_bands(series, period=20, std_dev=2):
-    """Calculate Bollinger Bands"""
     sma = series.rolling(window=period).mean()
     std = series.rolling(window=period).std()
     upper_band = sma + (std * std_dev)
     lower_band = sma - (std * std_dev)
     return upper_band, lower_band, sma
 
-
-def calculate_obv(df):
-    """Calculate On-Balance Volume"""
-    close = get_series(df, "Close")
-    volume = get_series(df, "Volume")
-    obv = (np.sign(close.diff()) * volume).fillna(0).cumsum()
-    return obv
-
-
 def calculate_atr(df, period=14):
-    """Calculate Average True Range"""
     high = get_series(df, "High")
     low = get_series(df, "Low")
     close = get_series(df, "Close")
-    
     tr1 = high - low
     tr2 = abs(high - close.shift())
     tr3 = abs(low - close.shift())
@@ -166,100 +133,138 @@ def calculate_atr(df, period=14):
     atr = tr.rolling(window=period).mean()
     return atr.fillna(0)
 
-
-# ==============================
-# 📊 PATTERN DETECTION
-# ==============================
-def detect_patterns(df):
-    """Detect chart patterns"""
+def detect_advanced_patterns(df):
     patterns = []
     close = get_series(df, "Close")
     high = get_series(df, "High")
     low = get_series(df, "Low")
+    open_prices = get_series(df, "Open")
     
-    if len(close) < 20:
+    if len(close) < 30:
         return patterns
     
-    # Support and Resistance
     resistance = close.rolling(20).max()
     support = close.rolling(20).min()
     
-    # Breakout detection
     if close.iloc[-1] > resistance.iloc[-2] * 0.99:
-        patterns.append("Breakout")
+        patterns.append("🚀 Breakout")
     elif close.iloc[-1] < support.iloc[-2] * 1.01:
-        patterns.append("Breakdown")
+        patterns.append("📉 Breakdown")
     
-    # Candlestick patterns
-    body = abs(close - get_series(df, "Open"))
+    body = abs(close - open_prices)
     avg_body = body.rolling(20).mean()
+    upper_shadow = high - np.maximum(open_prices, close)
+    lower_shadow = np.minimum(open_prices, close) - low
     
-    # Doji
     if body.iloc[-1] < avg_body.iloc[-1] * 0.3:
-        patterns.append("Doji")
+        patterns.append("⚖️ Doji")
     
-    # Bullish Engulfing
-    if (close.iloc[-1] > get_series(df, "Open").iloc[-1] and 
-        close.iloc[-2] < get_series(df, "Open").iloc[-2] and
-        close.iloc[-1] > get_series(df, "Open").iloc[-2] and
-        get_series(df, "Open").iloc[-1] < close.iloc[-2]):
-        patterns.append("Bullish Engulfing")
-    
-    # Hammer
-    lower_shadow = np.minimum(get_series(df, "Open"), close) - low
-    upper_shadow = high - np.maximum(get_series(df, "Open"), close)
     if (lower_shadow.iloc[-1] > 2 * body.iloc[-1] and 
         upper_shadow.iloc[-1] < body.iloc[-1] * 0.5):
-        patterns.append("Hammer")
+        patterns.append("🔨 Hammer")
+    
+    ma20 = close.rolling(20).mean()
+    ma50 = close.rolling(50).mean()
+    
+    if len(ma20) > 50 and len(ma50) > 50:
+        if ma20.iloc[-1] > ma50.iloc[-1] and ma20.iloc[-5] < ma50.iloc[-5]:
+            patterns.append("📈 Golden Cross")
     
     return patterns
 
+# ==============================
+# 🤖 AI FUNCTIONS
+# ==============================
+def ai_trade_explanation(data):
+    cache_key = get_cache_key("explain", data)
+    cached = get_cached_ai_response(cache_key)
+    if cached:
+        return cached
+    
+    if not USE_AI or not client:
+        return generate_fallback_explanation(data)
+    
+    try:
+        prompt = f"""
+        Act like a professional trader. Give concise analysis:
 
-# ==============================
-# 🤖 AI INSIGHT GENERATION
-# ==============================
-def generate_ai_insight(data):
-    """Generate AI-powered trading insight"""
-    if USE_AI and client:
-        try:
+        Stock: {data['stock']}
+        Price: ₹{data['price']}
+        RSI: {data['rsi']:.1f}
+        Pattern: {data['pattern']}
+        Signal: {data['signal']}
+        Score: {data['score']}/100
+
+        Respond in 2 lines:
+        - Why this trade exists
+        - Entry zone and exit strategy
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+            temperature=0.7
+        )
+        result = response.choices[0].message.content.strip()
+        cache_ai_response(cache_key, result)
+        return result
+    except Exception as e:
+        print(f"AI Error: {e}")
+        return generate_fallback_explanation(data)
+
+def generate_fallback_explanation(data):
+    if data['signal'] == 'BUY':
+        return f"📈 Bullish momentum | Entry: ₹{data['price']} | Target: +5% | Stop: -3%"
+    elif data['signal'] == 'SELL':
+        return f"📉 Bearish pressure | Exit above resistance | Watch for reversal"
+    else:
+        return f"⏸️ Consolidation | Wait for breakout above ₹{data['price'] * 1.02:.2f}"
+
+def market_sentiment_ai():
+    cache_key = "market_sentiment"
+    cached = get_cached_ai_response(cache_key)
+    if cached:
+        sentiment, reason = cached.split("|", 1)
+        return sentiment, reason
+    
+    if not USE_AI or not client:
+        return get_fallback_sentiment()
+    
+    try:
+        nifty = yf.download("^NSEI", period="5d", interval="1d", progress=False)
+        if not nifty.empty:
+            close = get_series(nifty, "Close")
+            change = ((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]) * 100
+            
             prompt = f"""
-            You are a professional technical analyst. Provide a concise trading insight (max 100 characters).
-            
-            Data:
-            Price: ₹{data['price']}
-            RSI: {data['rsi']:.1f}
-            Pattern: {data['pattern']}
-            Signal: {data['signal']}
-            Score: {data.get('score', 50)}/100
-            
-            Give short actionable insight:
+            NIFTY changed {change:.2f}% today.
+            Analyze Indian market sentiment.
+            Return: SENTIMENT|REASON
+            Sentiment: Bullish/Bearish/Sideways
             """
             
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=60,
-                temperature=0.7
+                temperature=0.6
             )
             
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"AI Error: {e}")
+            result = response.choices[0].message.content.strip()
+            if "|" in result:
+                cache_ai_response(cache_key, result)
+                sentiment, reason = result.split("|", 1)
+                return sentiment.strip(), reason.strip()
+    except:
+        pass
     
-    # Fallback insights
-    if data['signal'] == 'BUY':
-        return f"Bullish momentum with RSI {data['rsi']:.0f}. Watch for continuation above resistance."
-    elif data['signal'] == 'SELL':
-        return f"Bearish pressure building. RSI {data['rsi']:.0f} suggests potential downside."
-    else:
-        return f"Consolidation phase. RSI {data['rsi']:.0f}. Wait for clear breakout."
+    return get_fallback_sentiment()
 
+def get_fallback_sentiment():
+    return "Sideways", "Market consolidating ahead of key levels"
 
-# ==============================
-# 📈 IMPROVED BACKTESTING
-# ==============================
 def backtest(df):
-    """Backtest trading strategy"""
     trades = 0
     wins = 0
     total_return = 0
@@ -285,79 +290,67 @@ def backtest(df):
                 entry_price = close.iloc[i]
                 trades += 1
         else:
-            if position == "LONG" and (current_signal == "SELL" or i == len(df) - 1):
+            exit_condition = (position == "LONG" and current_signal == "SELL") or \
+                            (position == "SHORT" and current_signal == "BUY") or \
+                            i == len(df) - 1
+            
+            if exit_condition:
                 exit_price = close.iloc[i]
-                pnl = (exit_price - entry_price) / entry_price
-                total_return += pnl
-                if pnl > 0:
-                    wins += 1
-                position = None
-            elif position == "SHORT" and (current_signal == "BUY" or i == len(df) - 1):
-                exit_price = close.iloc[i]
-                pnl = (entry_price - exit_price) / entry_price
+                if position == "LONG":
+                    pnl = (exit_price - entry_price) / entry_price
+                else:
+                    pnl = (entry_price - exit_price) / entry_price
+                
                 total_return += pnl
                 if pnl > 0:
                     wins += 1
                 position = None
         
-        # Track drawdown
-        current_value = close.iloc[i]
-        if current_value > peak:
-            peak = current_value
-        drawdown = (peak - current_value) / peak if peak > 0 else 0
+        if close.iloc[i] > peak:
+            peak = close.iloc[i]
+        drawdown = (peak - close.iloc[i]) / peak if peak > 0 else 0
         max_drawdown = max(max_drawdown, drawdown)
     
     accuracy = (wins / trades * 100) if trades > 0 else 50
-    total_return_pct = total_return * 100
-    
-    return round(accuracy, 2), round(total_return_pct, 2), round(max_drawdown * 100, 2)
-
+    return round(accuracy, 2), round(total_return * 100, 2), round(max_drawdown * 100, 2)
 
 # ==============================
-# ⚡ CACHE DATA WITH RETRY
+# ⚡ OPTIMIZED DATA FETCHING
 # ==============================
 @lru_cache(maxsize=1)
 def get_market_data_cached():
-    """Fetch market data with caching"""
     stocks = get_stock_list()
-    try:
-        # Fetch in batches to avoid rate limiting
-        all_data = {}
-        batch_size = 20
-        
-        for i in range(0, len(stocks), batch_size):
-            batch = stocks[i:i+batch_size]
-            try:
-                data = yf.download(
-                    tickers=batch,
-                    period="3mo",
-                    interval="1d",
-                    group_by='ticker',
-                    threads=True,
-                    progress=False
-                )
-                if not data.empty:
-                    if len(batch) == 1:
-                        all_data[batch[0]] = data
-                    else:
-                        for ticker in batch:
-                            if ticker in data.columns.levels[0]:
-                                all_data[ticker] = data[ticker]
-            except Exception as e:
-                print(f"Batch error: {e}")
-            time.sleep(0.5)  # Rate limiting
-        
-        return all_data
-    except Exception as e:
-        print(f"Market data error: {e}")
-        return {}
-
+    all_data = {}
+    batch_size = 25
+    
+    for i in range(0, len(stocks), batch_size):
+        batch = stocks[i:i+batch_size]
+        try:
+            data = yf.download(
+                tickers=batch,
+                period="3mo",
+                interval="1d",
+                group_by='ticker',
+                threads=True,
+                progress=False
+            )
+            if not data.empty:
+                if len(batch) == 1:
+                    all_data[batch[0]] = data
+                else:
+                    for ticker in batch:
+                        if ticker in data.columns.levels[0]:
+                            all_data[ticker] = data[ticker]
+        except Exception as e:
+            print(f"Batch error: {e}")
+        time.sleep(0.3)
+    
+    return all_data
 
 # ==============================
 # 🔥 ENHANCED SCANNER
 # ==============================
 def get_opportunities():
-    """Generate trading opportunities with enhanced scoring"""
     stocks = get_stock_list()
     results = []
     
@@ -367,7 +360,9 @@ def get_opportunities():
         print(f"Data fetch error: {e}")
         return []
     
-    for stock in stocks[:50]:  # Limit to 50 stocks for performance
+    processed_stocks = random.sample(stocks, min(80, len(stocks)))
+    
+    for stock in processed_stocks:
         try:
             if stock not in market_data or market_data[stock].empty:
                 continue
@@ -381,121 +376,87 @@ def get_opportunities():
             high = get_series(df, "High")
             low = get_series(df, "Low")
             
-            # Technical Indicators
             df["MA20"] = close.rolling(20).mean()
             df["MA50"] = close.rolling(50).mean()
             df["RSI"] = calculate_rsi(close)
             
-            macd, macd_signal, macd_hist = calculate_macd(close)
+            macd, macd_signal = calculate_macd(close)
             df["MACD"] = macd
             df["MACD_SIGNAL"] = macd_signal
-            df["MACD_HIST"] = macd_hist
             
-            upper_bb, lower_bb, sma_bb = calculate_bollinger_bands(close)
+            upper_bb, lower_bb, _ = calculate_bollinger_bands(close)
             df["BB_UPPER"] = upper_bb
             df["BB_LOWER"] = lower_bb
             
             df["ATR"] = calculate_atr(df)
-            df["OBV"] = calculate_obv(df)
+            patterns = detect_advanced_patterns(df)
             
-            patterns = detect_patterns(df)
-            
-            # Current values
             latest_close = float(close.iloc[-1])
             latest_volume = float(volume.iloc[-1])
             avg_volume = float(volume.rolling(20).mean().iloc[-1])
             rsi = float(df["RSI"].iloc[-1])
             
-            # ======================
-            # 🎯 ENHANCED SCORING SYSTEM
-            # ======================
-            score = 50  # Base score
+            # Scoring System
+            score = 50
             
-            # Trend Score (20 pts)
             if df["MA20"].iloc[-1] > df["MA50"].iloc[-1]:
-                score += 12
-                if df["MA20"].iloc[-1] > df["MA50"].iloc[-5]:
-                    score += 8  # Trending strongly
+                score += 15
             else:
                 score -= 5
             
-            # Momentum Score (20 pts)
-            if rsi > 60 and rsi < 80:
-                score += 15  # Strong momentum, not overbought
+            if 60 < rsi < 80:
+                score += 15
             elif rsi > 50:
-                score += 10
+                score += 8
             elif rsi < 30:
-                score -= 10  # Oversold but could bounce
-            elif rsi < 40:
-                score -= 5
+                score -= 8
             
-            # MACD Score (15 pts)
             if df["MACD"].iloc[-1] > df["MACD_SIGNAL"].iloc[-1]:
-                score += 10
-                if df["MACD_HIST"].iloc[-1] > df["MACD_HIST"].iloc[-2]:
-                    score += 5  # Increasing momentum
+                score += 12
             else:
                 score -= 5
             
-            # Volume Score (10 pts)
             volume_ratio = latest_volume / avg_volume if avg_volume > 0 else 1
             if volume_ratio > 1.5:
-                score += 10  # High volume confirmation
+                score += 12
             elif volume_ratio > 1.2:
-                score += 5
-            elif volume_ratio < 0.5:
-                score -= 5
+                score += 6
             
-            # Volatility/Bollinger Score (10 pts)
             if latest_close > df["BB_UPPER"].iloc[-1]:
-                score += 8  # Breakout
+                score += 10
             elif latest_close < df["BB_LOWER"].iloc[-1]:
-                score -= 5  # Breakdown
-            elif latest_close > df["MA20"].iloc[-1]:
-                score += 3
+                score -= 8
             
-            # Pattern Score (15 pts)
             pattern_bonus = 0
-            if "Breakout" in patterns:
-                pattern_bonus += 12
-            if "Bullish Engulfing" in patterns:
-                pattern_bonus += 10
-            if "Hammer" in patterns:
-                pattern_bonus += 8
-            if "Doji" in patterns:
-                pattern_bonus += 3
-            
+            for pattern in patterns:
+                if "Breakout" in pattern:
+                    pattern_bonus += 12
+                elif "Golden Cross" in pattern:
+                    pattern_bonus += 10
+                elif "Hammer" in pattern:
+                    pattern_bonus += 6
             score += min(pattern_bonus, 15)
-            
-            # Normalize score
             score = max(0, min(100, score))
             
-            # ======================
-            # SIGNAL DETERMINATION
-            # ======================
             if score >= 70:
-                label = "BUY"
+                final_signal = "BUY"
             elif score <= 35:
-                label = "SELL"
+                final_signal = "SELL"
             else:
-                label = "WATCH"
+                final_signal = "WATCH"
             
-            # ======================
-            # RISK MANAGEMENT
-            # ======================
+            confidence = score
             atr_value = float(df["ATR"].iloc[-1]) if not pd.isna(df["ATR"].iloc[-1]) else latest_close * 0.02
             stop_loss = round(latest_close - (atr_value * 1.5), 2)
             target_1 = round(latest_close + (atr_value * 2), 2)
-            target_2 = round(latest_close + (atr_value * 3.5), 2)
             
-            confidence = min(score, 100)
-            
-            insight = generate_ai_insight({
-                "price": latest_close,
-                "rsi": rsi,
-                "pattern": ", ".join(patterns) if patterns else "None",
-                "signal": label,
-                "score": score
+            insight = ai_trade_explanation({
+                'stock': stock.replace(".NS", ""),
+                'price': latest_close,
+                'rsi': rsi,
+                'pattern': ", ".join(patterns[:2]) if patterns else "Sideways",
+                'signal': final_signal,
+                'score': confidence
             })
             
             results.append({
@@ -503,51 +464,40 @@ def get_opportunities():
                 "price": round(latest_close, 2),
                 "score": score,
                 "confidence": confidence,
-                "signals": label,
+                "signals": final_signal,
                 "pattern": ", ".join(patterns[:2]) if patterns else "Sideways",
                 "insight": insight,
                 "sl": stop_loss,
                 "target": target_1,
-                "target2": target_2,
                 "rsi": round(rsi, 1),
                 "volume_ratio": round(volume_ratio, 2)
             })
             
         except Exception as e:
-            print(f"Error processing {stock}: {e}")
             continue
     
-    # Sort by score and return top 20
-    return sorted(results, key=lambda x: x["score"], reverse=True)[:20]
-
+    return sorted(results, key=lambda x: x["score"], reverse=True)[:30]
 
 # ==============================
-# 🏠 HOME ROUTE
+# 🚀 CRITICAL API ROUTES (FIXED)
 # ==============================
-@app.route("/")
-def home():
-    opportunities = get_opportunities()
-    return render_template("index.html", data=opportunities)
 
-
-# ==============================
-# 📊 STOCK DETAIL PAGE
-# ==============================
-@app.route("/stock/<symbol>")
-def stock_detail(symbol):
-    """Display detailed chart for a specific stock"""
-    tf = request.args.get("tf", "3mo")
-    interval = request.args.get("int", "1d")
+@app.route("/api/stock-data/<symbol>")
+def api_stock_data(symbol):
+    """CRITICAL FIX: This is the endpoint your frontend calls!"""
+    period = request.args.get("period", "3mo")
+    interval = request.args.get("interval", "1d")
+    
+    print(f"📊 API called for: {symbol} with period={period}, interval={interval}")
     
     try:
         ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
-        df = yf.download(ticker, period=tf, interval=interval, progress=False)
+        df = yf.download(ticker, period=period, interval=interval, progress=False)
         
         if df.empty:
-            return f"No data available for {symbol}", 404
+            return jsonify({"error": f"No data found for {symbol}"}), 404
         
         df.reset_index(inplace=True)
-        
         close = get_series(df, "Close")
         
         # Calculate indicators
@@ -555,7 +505,7 @@ def stock_detail(symbol):
         df["EMA9"] = close.ewm(span=9, adjust=False).mean()
         df["RSI"] = calculate_rsi(close)
         
-        macd, macd_signal, _ = calculate_macd(close)
+        macd, macd_signal = calculate_macd(close)
         df["MACD"] = macd
         df["MACD_SIGNAL"] = macd_signal
         
@@ -589,53 +539,80 @@ def stock_detail(symbol):
                 signals.append("HOLD")
         
         df["Signal"] = signals
+        patterns = detect_advanced_patterns(df)
         
-        # Backtest
-        accuracy, profit, max_dd = backtest(df)
-        patterns = detect_patterns(df)
-        
-        insight = generate_ai_insight({
-            "price": float(close.iloc[-1]),
-            "rsi": float(df["RSI"].iloc[-1]),
-            "pattern": ", ".join(patterns) if patterns else "None",
-            "signal": signals[-1],
-            "score": 70
-        })
-        
-        # Prepare data for template
         date_column = "Date" if "Date" in df.columns else df.columns[0]
         
-        return render_template(
-            "stock.html",
-            symbol=symbol,
-            dates=df[date_column].astype(str).tolist(),
-            open=get_series(df, "Open").tolist(),
-            high=get_series(df, "High").tolist(),
-            low=get_series(df, "Low").tolist(),
-            close=close.tolist(),
-            volume=get_series(df, "Volume").tolist(),
-            ma20=df["MA20"].fillna(0).tolist(),
-            ema9=df["EMA9"].fillna(0).tolist(),
-            rsi=df["RSI"].fillna(50).tolist(),
-            signals=signals,
-            insight=insight,
-            accuracy=accuracy,
-            pattern=", ".join(patterns[:2]) if patterns else "None",
-            profit=profit,
-            max_drawdown=max_dd
-        )
+        response_data = {
+            "dates": df[date_column].astype(str).tolist(),
+            "open": get_series(df, "Open").tolist(),
+            "high": get_series(df, "High").tolist(),
+            "low": get_series(df, "Low").tolist(),
+            "close": close.tolist(),
+            "volume": get_series(df, "Volume").tolist(),
+            "ma20": df["MA20"].fillna(0).tolist(),
+            "ema9": df["EMA9"].fillna(0).tolist(),
+            "rsi": df["RSI"].fillna(50).tolist(),
+            "signals": signals,
+            "current_price": float(close.iloc[-1]),
+            "support": float(close.rolling(20).min().iloc[-1]),
+            "resistance": float(close.rolling(20).max().iloc[-1]),
+            "pattern": ", ".join(patterns[:2]) if patterns else "Sideways"
+        }
+        
+        print(f"✅ API response prepared for {symbol}: {len(response_data['dates'])} candles")
+        return jsonify(response_data)
         
     except Exception as e:
-        print(f"Stock detail error: {e}")
-        return f"Error loading {symbol}: {str(e)}", 500
+        print(f"❌ API ERROR for {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
 
+@app.route("/api/live-price/<symbol>")
+def api_live_price(symbol):
+    """Lightweight live price endpoint"""
+    try:
+        ticker = symbol + ".NS" if not symbol.endswith(".NS") else symbol
+        df = yf.download(ticker, period="1d", interval="5m", progress=False)
+        
+        if df.empty:
+            return jsonify({"error": "No data"}), 404
+        
+        close = get_series(df, "Close")
+        volume = get_series(df, "Volume")
+        
+        return jsonify({
+            "price": float(close.iloc[-1]),
+            "volume": float(volume.iloc[-1]),
+            "change": float(((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]) * 100) if len(close) > 1 else 0,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ==============================
-# 📊 MARKET OVERVIEW ROUTE
+# 🏠 HTML ROUTES
 # ==============================
+@app.route("/")
+def home():
+    opportunities = get_opportunities()
+    market_sentiment, sentiment_reason = market_sentiment_ai()
+    total_stocks = len(get_stock_list())
+    
+    return render_template("index.html", 
+                          data=opportunities,
+                          market_sentiment=market_sentiment,
+                          sentiment_reason=sentiment_reason,
+                          total_stocks=total_stocks,
+                          ai_enabled=USE_AI)
+
+@app.route("/stock/<symbol>")
+def stock_detail(symbol):
+    """Stock detail page with chart"""
+    return render_template("stock.html", symbol=symbol.upper())
+
 @app.route("/market")
 def market_overview():
-    """Market overview with indices"""
     indices = {
         "NIFTY 50": "^NSEI",
         "BANK NIFTY": "^NSEBANK",
@@ -656,13 +633,84 @@ def market_overview():
         except:
             market_data[name] = {"value": "N/A", "change": 0}
     
-    return render_template("market.html", market_data=market_data)
+    market_sentiment, sentiment_reason = market_sentiment_ai()
+    return render_template("market.html", 
+                          market_data=market_data,
+                          market_sentiment=market_sentiment,
+                          sentiment_reason=sentiment_reason)
 
+@app.route("/api/stocks")
+def api_stocks():
+    """API endpoint for stock list"""
+    stocks = get_stock_list()
+    return jsonify([s.replace(".NS", "") for s in stocks])
+
+@app.route("/api/opportunities")
+def api_opportunities():
+    """API endpoint for opportunities"""
+    opportunities = get_opportunities()
+    return jsonify(opportunities)
+
+@app.route("/chatbot", methods=["POST"])
+def chatbot():
+    """AI Chatbot API endpoint"""
+    data = request.json
+    user_message = data.get("message", "")
+    stock_symbol = data.get("stock", None)
+    
+    if not USE_AI:
+        return jsonify({"response": "AI is currently disabled. Please set OPENAI_API_KEY to enable AI features."})
+    
+    stock_data = None
+    if stock_symbol:
+        try:
+            ticker = stock_symbol + ".NS" if not stock_symbol.endswith(".NS") else stock_symbol
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="1d")
+            if not hist.empty:
+                stock_data = {
+                    'symbol': stock_symbol,
+                    'price': round(hist['Close'].iloc[-1], 2)
+                }
+        except:
+            pass
+    
+    try:
+        prompt = f"""
+        You are a trading assistant. Answer professionally:
+        
+        {f"Stock: {stock_data['symbol']} at ₹{stock_data['price']}" if stock_data else ""}
+        
+        User: {user_message}
+        
+        Assistant (concise, helpful):
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=150,
+            temperature=0.8
+        )
+        
+        return jsonify({"response": response.choices[0].message.content.strip()})
+    except Exception as e:
+        return jsonify({"response": f"Error: {str(e)}"})
 
 # ==============================
 # ▶️ RUN APPLICATION
 # ==============================
 if __name__ == "__main__":
-    print(f"Starting AI Radar Pro...")
-    print(f"Available stocks: {len(get_stock_list())}")
-    app.run(debug=True, host="0.0.0.0", port=5001)
+    print("=" * 60)
+    print("🚀 AI Radar Pro v2.0 - Fixed with API Routes")
+    print("=" * 60)
+    print(f"🤖 AI Status: {'✅ ENABLED' if USE_AI else '❌ DISABLED'}")
+    print(f"📊 Total Stocks: {len(get_stock_list())}")
+    print(f"📍 API Endpoints:")
+    print(f"   GET /api/stock-data/<symbol> - Full chart data")
+    print(f"   GET /api/live-price/<symbol> - Live price")
+    print(f"   GET /api/opportunities - Top opportunities")
+    print(f"   GET /api/stocks - All stocks list")
+    print(f"🌐 Server: http://127.0.0.1:5001")
+    print("=" * 60)
+    app.run(debug=True, host="127.0.0.1", port=5001, threaded=True)
