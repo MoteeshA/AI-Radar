@@ -18,12 +18,12 @@ def get_stock_list():
 def get_opportunities():
     stocks = get_stock_list()
     results = []
-    fallback_data = []  # always keep some data
+    fallback_data = []
 
     try:
         data = yf.download(
             tickers=stocks,
-            period="2mo",
+            period="3mo",  # slightly more data for better analysis
             interval="1d",
             group_by='ticker',
             threads=True
@@ -45,8 +45,12 @@ def get_opportunities():
             df = data[stock].copy()
             df.dropna(inplace=True)
 
-            if len(df) < 20:
+            if len(df) < 50:
                 continue
+
+            # 🔥 Indicators
+            df['MA20'] = df['Close'].rolling(20).mean()
+            df['MA50'] = df['Close'].rolling(50).mean()
 
             latest = df.iloc[-1]
             prev = df.iloc[:-1]
@@ -58,30 +62,40 @@ def get_opportunities():
             avg_vol_10 = float(prev['Volume'].rolling(10).mean().iloc[-1])
             avg_price = float(prev['Close'].mean())
 
+            ma20 = float(latest['MA20'])
+            ma50 = float(latest['MA50'])
+
+            # 🔥 Conditions
             breakout = latest_close > max_20
             volume_spike = latest_volume > 2 * avg_vol_10
+            uptrend = ma20 > ma50
+            momentum = latest_close > df['Close'].iloc[-5]
 
-            # 🔥 Improved scoring
+            # 🧠 Improved scoring
             score = 0
             signals = []
 
             if breakout:
-                score += 40
+                score += 35
                 signals.append("Breakout")
 
             if volume_spike:
-                score += 30
+                score += 25
                 signals.append("Volume Spike")
 
-            if latest_close > avg_price:
+            if uptrend:
                 score += 20
-                signals.append("Uptrend")
+                signals.append("MA Uptrend")
 
-            if latest_volume > avg_vol_10:
+            if momentum:
                 score += 10
-                signals.append("High Volume")
+                signals.append("Momentum")
 
-            # 🧠 Always store fallback candidates
+            if latest_close > avg_price:
+                score += 10
+                signals.append("Above Avg Price")
+
+            # 🧠 Save fallback always
             fallback_data.append({
                 "stock": stock.replace(".NS", ""),
                 "price": round(latest_close, 2),
@@ -90,7 +104,7 @@ def get_opportunities():
             })
 
             # 🎯 Strong opportunities
-            if score >= 20:
+            if score >= 25:
                 results.append({
                     "stock": stock.replace(".NS", ""),
                     "price": round(latest_close, 2),
@@ -102,11 +116,11 @@ def get_opportunities():
             print(f"Skipping {stock}: {e}")
             continue
 
-    # 🔥 CASE 1: Strong signals exist
+    # 🔥 CASE 1: Strong signals
     if len(results) > 0:
         return sorted(results, key=lambda x: x["score"], reverse=True)[:10]
 
-    # 🔥 CASE 2: No strong signals → show best available
+    # 🔥 CASE 2: fallback (always show something useful)
     if len(fallback_data) > 0:
         fallback_sorted = sorted(fallback_data, key=lambda x: x["score"], reverse=True)[:10]
 
@@ -115,7 +129,7 @@ def get_opportunities():
 
         return fallback_sorted
 
-    # 🔥 CASE 3: Total failure (rare)
+    # 🔥 CASE 3: total failure
     return [{
         "stock": "MARKET",
         "price": "-",
