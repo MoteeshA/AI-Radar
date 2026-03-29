@@ -701,16 +701,6 @@ def chatbot():
 # ▶️ RUN APPLICATION
 # ==============================
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🚀 AI Radar Pro v2.0 - Fixed with API Routes")
-    print("=" * 60)
-    print(f"🤖 AI Status: {'✅ ENABLED' if USE_AI else '❌ DISABLED'}")
-    print(f"📊 Total Stocks: {len(get_stock_list())}")
-    print(f"📍 API Endpoints:")
-    print(f"   GET /api/stock-data/<symbol> - Full chart data")
-    print(f"   GET /api/live-price/<symbol> - Live price")
-    print(f"   GET /api/opportunities - Top opportunities")
-    print(f"   GET /api/stocks - All stocks list")
-    print(f"🌐 Server: http://127.0.0.1:5001")
-    print("=" * 60)
-    app.run(debug=True, host="127.0.0.1", port=5001, threaded=True)
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
