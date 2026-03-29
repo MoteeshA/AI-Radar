@@ -1,8 +1,8 @@
-# 🚀 AI Radar Pro — Neural Trading Intelligence Dashboard
+# 🚀 Neural — A Trading Intelligence Dashboard
 
 ## 📌 Overview
 
-AI Radar Pro is a real-time AI-powered stock analysis dashboard built using Flask, Python, and modern frontend technologies.
+Neural is a real-time AI-powered stock analysis dashboard built using Flask, Python, and modern frontend technologies.
 It analyzes Indian stock market data (NSE) using technical indicators and AI to generate trading signals, insights, and visualizations.
 
 ---
@@ -229,4 +229,4 @@ If you like this project:
 
 ---
 
-**AI Radar Pro — Turning data into decisions 🧠📈**
+**Neural — Turning data into decisions 🧠📈**
