@@ -212,8 +212,11 @@ It is **not financial advice**. Always do your own research before investing.
 ---
 
 ## 👨‍💻 Author
-
+**Moteesh A**
 **Nikhil T. Nainan**
+**Swaraj Kumar Sahu**
+**Manya Singh**
+
 B.E. Computer Science Engineering (2026)
 Developer | AI Enthusiast
 
